@@ -1,11 +1,5 @@
-print ("Start")
-
-import re
-import time
-import gzip
+import re, time, gzip, os.path, sys, argparse
 from Bio.Blast import NCBIWWW
-import os.path
-import sys
 from pyfasta import Fasta
 
 class NCRNAEntry:
@@ -42,19 +36,28 @@ def getBLASTseq(seq,filename):
 	result_handle.close()
 	return
 
-#def getBLASTseq2(seq,filename):
-#	print seq + " " + filename
-#	return
 
-withGIs = True
-withCoords = True
-filterPValue = 0.005
-filterFDR = 0.05
+parser = argparse.ArgumentParser(description="")
+parser.add_argument('--withGIs',action='store_true')
+parser.add_argument('--withCoords',action='store_true')
+parser.add_argument('--filterPValue',nargs=1, required=True)
+parser.add_argument('--filterFDR',nargs=1, required=True)
+parser.add_argument('--processNames',action='store_true', required=True)
+parser.add_argument('--rMatsResultsDir',nargs=1, required=True)
+parser.add_argument('--gbff',nargs=1, required=True)
+parser.add_argument('--genome',nargs=1, required=True)
 
-if len(sys.argv) < 2:
-	print "Error, give path to rMATS results dir"
-	exit()
-dirToRMatsResults = sys.argv[1]
+args = parser.parse_args()
+
+withGIs = args.withGIs
+withCoords = args.withCoords
+filterPValue = args.filterPValue[0]
+filterFDR = args.filterFDR[0]
+dirToRMatsResults = args.rMatsResultsDir[0]
+dirToGBBF = args.gbff[0]
+dirToGenomeFA = args.genome[0]
+
+
 rmatsResultFiles = {	"A3SS" : dirToRMatsResults + "/MATS_output/" + "A3SS.MATS.ReadsOnTargetAndJunctionCounts.txt",
 			"A5SS" : dirToRMatsResults + "/MATS_output/" + "A5SS.MATS.ReadsOnTargetAndJunctionCounts.txt",
 			"MXE" : dirToRMatsResults + "/MATS_output/" + "MXE.MATS.ReadsOnTargetAndJunctionCounts.txt",
@@ -92,8 +95,8 @@ print len(rmatsResults)
 
 
 
-#TODO: This mode thing is getting dumb, probably take it out and just do everything, outputting only as necessary
-with open("GCF_001433935.1_IRGSP-1.0_genomic.gbff", "r") as gbffIn:
+#TODO: This mode thing is not great, probably take it out and just do everything, outputting only as necessary
+with open(dirToGBFF, "r") as gbffIn:
         
 	output, numExons, thisGI, thisLOCID, foundOne = [], 0, "", "", False
 	entries = []
@@ -147,10 +150,7 @@ with open("GCF_001433935.1_IRGSP-1.0_genomic.gbff", "r") as gbffIn:
 #	def __init__(self,geneSymbol, chromosome, startCoord, endCoord, asType, rmatsID, pValue, FDR, mxeB = False)
 #def getBLASTseq(seq,filename)
 count = 0
-#genome = Fasta('/media/alex/Two/BioinfoFiles/Oryza_sativa_japonica_Ensembl_IRGSP-1.0/Oryza_sativa_japonica/Ensembl/IRGSP-1.0/Sequence/WholeGenomeFasta/genome.fa')
-genome = Fasta('y:/BioinfoFiles/Oryza_sativa_japonica_Ensembl_IRGSP-1.0/Oryza_sativa_japonica/Ensembl/IRGSP-1.0/Sequence/WholeGenomeFasta/genome.fa')
-#print genome.keys()
-#print genome['5'][601370:601402]
+genome = Fasta(dirToGenomeFA)
 with open("processThese",'w') as processThese:
 	processThese.write(".\tLOC ID\tPValue\tFDR\tchr\tstartCoord\tendCoord\tASType\n")
 	with open('matches','w') as matchesOut:
@@ -161,10 +161,12 @@ with open("processThese",'w') as processThese:
 					count += 1
 					matchesOut.write(entry.LOCID + "\t" + rmatsResult.asType + "\t" + rmatsResult.rmatsID + "\n")
 					if(rmatsResult.mxeB):
-						getBLASTseq(genome[rmatsResult.chromosome][int(rmatsResult.startCoord):int(rmatsResult.endCoord)],rmatsResult.asType + rmatsResult.rmatsID + "B.xml.gz")
+						if(not os.path.isfile(os.path.dirname(os.path.realpath(__file__)) + "/data/" + rmatsResult.asType + rmatsResult.rmatsID + "B.xml.gz")):
+							getBLASTseq(genome[rmatsResult.chromosome][int(rmatsResult.startCoord):int(rmatsResult.endCoord)],rmatsResult.asType + rmatsResult.rmatsID + "B.xml.gz")
 						processThese.write(rmatsResult.asType + rmatsResult.rmatsID + "B\t" + rmatsResult.geneSymbol + '\t' + rmatsResult.pValue + '\t' + rmatsResult.FDR + '\t' + rmatsResult.chromosome + '\t' + str(rmatsResult.startCoord) + '\t' + str(rmatsResult.endCoord) + '\t' + rmatsResult.asType + '\n')
 					else:
-						getBLASTseq(genome[rmatsResult.chromosome][int(rmatsResult.startCoord):int(rmatsResult.endCoord)],rmatsResult.asType + rmatsResult.rmatsID + ".xml.gz")
+						if(not os.path.isfile(os.path.dirname(os.path.realpath(__file__)) + "/data/" + rmatsResult.asType + rmatsResult.rmatsID + ".xml.gz")):
+							getBLASTseq(genome[rmatsResult.chromosome][int(rmatsResult.startCoord):int(rmatsResult.endCoord)],rmatsResult.asType + rmatsResult.rmatsID + ".xml.gz")
 						processThese.write(rmatsResult.asType + rmatsResult.rmatsID + '\t' + rmatsResult.geneSymbol + '\t' + rmatsResult.pValue + '\t' + rmatsResult.FDR + '\t' + rmatsResult.chromosome + '\t' + str(rmatsResult.startCoord) + '\t' + str(rmatsResult.endCoord) + '\t' + rmatsResult.asType + '\n')
 					break
 

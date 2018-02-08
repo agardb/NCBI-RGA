@@ -1,25 +1,29 @@
 print ("Start")
 
-
 #TODO: Watch for things with no LOC ID, or LOC IDs that look weird, including
 #<Hit_def>Diplodia corticola transcription factor tfiia complex subunit mRNA</Hit_def>
 #or
 #<Hit_def>PREDICTED: Tursiops truncatus angiomotin like 1 (AMOTL1), transcript variant X3, mRNA</Hit_def>
 
-oneSpecies = True
-species = "Oryza sativa Japonica"
-lengthFilter = 0
-processNames = True
-forbiddenStrings = ["ribosomal RNA"]
-
-import gzip
-import os
-import re
-import time
-import itertools
+import gzip, os, re, time, itertools, argparse
 from sets import Set
 from Bio.Blast import NCBIXML
-#import os.path
+
+
+parser = argparse.ArgumentParser(description="")
+parser.add_argument('--species',nargs=1, required=True)		#length
+parser.add_argument('--lengthFilter',nargs=1, required=True)		#input files
+parser.add_argument('--processNames',action='store_true', required=True)
+parser.add_argument('--forbiddenStrings',nargs=1)		#input files
+parser.add_argument('--rmatsMode',action='store_true')
+args = parser.parse_args()
+species = args.species[0]
+lengthFilter = int(args.lengthFilter[0])
+processNames = args.processNames
+forbiddenStrings = args.forbiddenStrings
+rmatsMode = args.rmatsMode
+
+
 
 class AlignmentEntry:	#Data unique to one alignment
 	def __init__(self,alignment, locHit, fileNumber, extraColumns):
@@ -133,9 +137,10 @@ with open("processThese","r") as processThese:
 		print len(extraColumnIDs)
 	else:
 		processThese.seek(0)
-	with open(species + fileAppend + "ncRNA.txt","w") as speciesNCRNA:
-		with open(species + fileAppend + "else.txt","w") as speciesElse:
-			with open("Non" + species + fileAppend + ".txt","w") as nonSpecies:
+		extraColumnIDs = []
+	with open(species + fileAppend + "ncRNA","w") as speciesNCRNA:
+		with open(species + fileAppend + "else","w") as speciesElse:
+			with open("Non" + species + fileAppend,"w") as nonSpecies:
 				speciesNCRNAResults = []
 				speciesElseResults = []
 				nonSpeciesResults = []
@@ -143,11 +148,11 @@ with open("processThese","r") as processThese:
 				for GISearched in processThese:
 					extraColumns=GISearched.split('\t')[1:]	#Extra data to stick on from rMATS processing
 					GISearched=GISearched.split('\t')[0].strip()
-					if(os.path.isfile(os.path.dirname(os.path.realpath(__file__)) + "/" + GISearched.strip() + ".xml.gz")):
+					if(os.path.isfile(os.path.dirname(os.path.realpath(__file__)) + "/data/" + GISearched.strip() + ".xml.gz")):
 #						reMatch = re.match("^(\d+)\.xml\.gz$",a)
 #						if not reMatch == None:
 #							with gzip.open(reMatch.group(1) + ".xml.gz", "rb") as openIt:
-						with gzip.open(GISearched.strip() + ".xml.gz", "rb") as openIt:
+						with gzip.open("data/" + GISearched.strip() + ".xml.gz", "rb") as openIt:
 							blast_record = NCBIXML.read(openIt)
 							if(rmatsMode):
 								LOCtouse = extraColumns[0]

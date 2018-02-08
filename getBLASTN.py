@@ -1,10 +1,7 @@
 print ("Start")
 
-import re
-import time
-import gzip
+import re, time, gzip, os.path, sys, argparse
 from Bio.Blast import NCBIWWW
-import os.path
 
 class Entry:
 	def __init__(self,LOCID,coord,GI,length,numExons):
@@ -17,26 +14,43 @@ class Entry:
 def getBLAST(GI):	#
 	print ("Getting BLAST result")
 	startTime = time.time()
+	#This is the line to change to tweak NCBI query parameters, or use your own blast server, check the biopython docs.
 	result_handle = NCBIWWW.qblast("blastn","refseq_rna",GI,hitlist_size=500,megablast=True)	#All RNA now
 #	result_handle = NCBIWWW.qblast("blastn","refseq_rna",GItouse,db_genetic_code=39947,hitlist_size=5,megablast=True)
 	print ("Got BLAST result in %d seconds" % (time.time() - startTime))
-	with gzip.open(str(GI) + ".xml.gz", "wb") as saveIt:
+	with gzip.open("data/" + str(GI) + ".xml.gz", "wb") as saveIt:
 		saveIt.write(result_handle.read())
 	result_handle.close()
 	return
 
 
-withGIs = True
-withCoords = False
-justCount = False
-onlyLongest = True
-onlyShortest = False
+parser = argparse.ArgumentParser(description="")
+parser.add_argument('--withGIs',action='store_true')
+parser.add_argument('--withCoords',action='store_true')
+parser.add_argument('--justCount',action='store_true')
+parser.add_argument('--onlyLongest',action='store_true')
+parser.add_argument('--onlyShortest',action='store_true')
+parser.add_argument('--gbff',nargs=1, required=True)
+
+args = parser.parse_args()
+
+withGIs = args.withGIs
+withCoords = args.withCoords
+justCount = args.justCount
+onlyLongest = args.onlyLongest
+onlyShortest = args.onlyShortest
+gbffFilePath = args.gbff[0]
+
+
 if onlyLongest or onlyShortest:
 	withCoords = True
 count = 0
-#TODO: This mode thing is getting dumb, probably take it out and just do everything, outputting only as necessary
-#with open("/media/alex/Two/BioinfoFiles/GCF_001433935.1_IRGSP-1.0_genomic.gbff", "r") as gbffIn:
-with open("GCF_001433935.1_IRGSP-1.0_genomic.gbff", "r") as gbffIn:
+
+
+#TODO: This mode thing is not great, probably take it out and just do everything, outputting only as necessary
+
+
+with open(gbffFilePath, "r") as gbffIn:
         
 	output, numExons, thisGI, thisLOCID, foundOne = [], 0, "", "", False
 	entries = []
@@ -119,14 +133,14 @@ with open('processThese','w') as processThese:
 		                if(entries[i].length > longestFound.length):
 		                        longestFound = entries[i]
 		        else:		
-		                if(not os.path.isfile(os.path.dirname(os.path.realpath(__file__)) + "/" + longestFound.GI + ".xml.gz")):
+		                if(not os.path.isfile(os.path.dirname(os.path.realpath(__file__)) + "/data/" + longestFound.GI + ".xml.gz")):
 		                        getBLAST(longestFound.GI)
 				processThese.write(longestFound.GI + '\n')
 		                longestFound = entries[i]
 		if(longestFound.GI != None):
-		        if(not os.path.isfile(os.path.dirname(os.path.realpath(__file__)) + "/" + longestFound.GI + ".xml.gz")):
+		        if(not os.path.isfile(os.path.dirname(os.path.realpath(__file__)) + "/data/" + longestFound.GI + ".xml.gz")):
 		                getBLAST(longestFound.GI)
-			#processThese.write(longestFound.GI + '\n')
+			processThese.write(longestFound.GI + '\n')
 
 	if onlyShortest:
 		if(len(entries) > 0):
@@ -137,14 +151,14 @@ with open('processThese','w') as processThese:
 		                if(entries[i].length < shortestFound.length):
 		                        shortestFound = entries[i]
 		        else:		
-		                if(not os.path.isfile(os.path.dirname(os.path.realpath(__file__)) + "/" + shortestFound.GI + ".xml.gz")):
+		                if(not os.path.isfile(os.path.dirname(os.path.realpath(__file__)) + "/data/" + shortestFound.GI + ".xml.gz")):
 		                        getBLAST(shortestFound.GI)
-				processThese.write(longestFound.GI + '\n')
+				processThese.write(shortestFound.GI + '\n')
 		                shortestFound = entries[i]
 		if(shortestFound.GI != None):
-		        if(not os.path.isfile(os.path.dirname(os.path.realpath(__file__)) + "/" + shortestFound.GI + ".xml.gz")):
+		        if(not os.path.isfile(os.path.dirname(os.path.realpath(__file__)) + "/data/" + shortestFound.GI + ".xml.gz")):
 		                getBLAST(shortestFound.GI)
-			#processThese.write(longestFound.GI + '\n')
+			processThese.write(longestFound.GI + '\n')
 
 
 
